@@ -169,6 +169,9 @@ yarn-error.log*
 *.bz2
 *.xz
 
+# local data files
+_data
+
 # visual studio
 *.code-workspace
 .vscode/*
