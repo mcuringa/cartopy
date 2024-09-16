@@ -3,72 +3,51 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nycschools"
+name = "maptools"
 version = "0.1.17"
 authors = [
-  { name="Matthew X. Curinga", email="matt@curinga.com" },
+  { name="Matthew X. Curinga", email="mcuringa@adelphi.edu" },
 ]
-description = "Tools to work with open data about New York City public schools"
+description = "Python tools to extend geopandas, folium, and Leaflet for mapping and spatial analysis."
 readme = "README.md"
 
 requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 3 - Alpha",
-    'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
-    'Operating System :: OS Independent',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Intended Audience :: Developers',
-    'Intended Audience :: Education',
-    'Intended Audience :: Science/Research',
-    'Natural Language :: English',
-    'Framework :: Jupyter',
-    'Topic :: Education',
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Framework :: Jupyter",
+    "Framework :: Matplotlib",
+    "Framework :: IPython",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 keywords=["opendata, schools, newyorkcity, maps"]
 
 dependencies = [
-  "arrow",
-  "beautifulsoup4",
-  "build",
-  "invoke",
-  "folium",
-  "geopandas",
-  "geopy",
-  "html5lib",
-  "humanize",
-  "ipython",
-  "lxml",
-  "mapclassify",
-  "matplotlib",
-  "networkx",
-  "nbformat",
-  "numpy",
-  "openpyxl",
-  "pandas",
-  "plotly",
-  "pingouin",
-  "py7zr",
-  "pyarrow",
-  "python-dotenv",
-  "python-Levenshtein",
-  "pyodbc",
-  "pytest",
-  "requests",
-  "scikit-learn",
-  "seaborn",
-  "selenium",
-  "thefuzz",
-  "toml",
-  "twine",
-  "wget",
-  "xyzservices",
-  "yaspin"
+"fiona",
+"folium",
+"geopandas",
+"humanize",
+"ipykernel",
+"keyring",
+"mapclassify",
+"plotly",
+"seaborn"
+
 ]
 
 [project.urls]
-"Homepage" = "https://adelphi-ed-tech.github.io/nycschools/"
-"Bug Tracker" = "https://github.com/adelphi-ed-tech/nycschools/issues"
-"Source" = "https://github.com/adelphi-ed-tech/nycschools"
+"Homepage" = "https://github.com/mcuringa/cartopy"
+"Bug Tracker" = "https://github.com/mcuringa/cartopy/issues"
+"Source" = "https://github.com/mcuringa/cartopy"
