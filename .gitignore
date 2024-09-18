@@ -185,3 +185,4 @@ chromedriver
 ceps
 .firebase*
 firebase.json
+notebooks/runs.geojson
