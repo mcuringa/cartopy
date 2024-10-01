@@ -12,6 +12,7 @@ import datetime
 import humanize
 
 from invoke import task
+import json
 
 
 def get_project_config():
@@ -84,6 +85,24 @@ def tag(c):
 
 
 @task
+def hero_icons(c):
+    """Download heroicons."""
+    path = "./heroicons-master/optimized/16/solid"
+    files = os.listdir(path)
+    icons = {}
+    for f in files:
+        if f.endswith(".svg"):
+            filepath = os.path.join(path, f)
+            with open(filepath, "r") as svg:
+                src = svg.read()
+                key = f.replace(".svg", "")
+                icons[key] = src
+    # write it to icons.json with 2 tabs
+    with open("hi-icons.json", "w") as f:
+        json.dump(icons, f, indent=2)
+
+
+@task
 def tiger_places(c):
     """Download the census place data."""
     c.run("rm -rf _data/census_place")
@@ -110,7 +129,7 @@ def tiger_places(c):
 
     combined = pd.concat(results)
     combined = gpd.GeoDataFrame(combined)
-    combined.to_file("_ata/census_place/census_place.geojson", driver="GeoJSON")
+    combined.to_file("_data/census_place/census_place.geojson", driver="GeoJSON")
 
 
 @task

@@ -31,6 +31,8 @@ from functools import partial
 import xyzservices.providers as xyz
 import warnings
 
+from .icons import hi_icons
+
 
 def base_map(gdf=None, center=None, zoom=10, provider=xyz.CartoDB.Positron, name=""):
     """
@@ -92,6 +94,57 @@ def label_plot(ax, df, col):
 
     df.apply(label, axis=1)
     return ax
+
+
+def div_icon(icon, row, m=None, size=16,
+             color=None, column=None, cmap=None,
+             style_kwds={}, style_func=None,
+             tooltip=None, popup="None", **kwargs):
+
+    if cmap and column:
+        color = cmap(row[column])
+    elif color:
+        color = color
+    else:
+        color = "blue"
+
+    default_style = {
+        "color": f"{color}",
+        "stroke": f"{color}",
+        "fill": f"{color}",
+        "stroke-width": "1",
+        "stroke-opacity": "0.8",
+        "fill-opacity": "0.6",
+        "height": f"{size}px",
+        "width": f"{size}px"
+    }
+    css = default_style | style_kwds
+    if style_func:
+        feature = {
+            "type": "Feature",
+            "properties": row.to_dict(),
+            "geometry": row.geometry.__geo_interface__
+            }
+        custom = style_func(feature)
+        css = css | custom
+        print(custom)
+    if icon.startswith("hi-"):
+        icon = hi_icons[icon.replace("hi-", "")]
+
+    css = ";".join([f"{k}:{v}" for k, v in css.items()])
+
+    point = row.geometry.centroid
+    html = f"""<div style="{css}">{icon}</div>"""
+    # print(html)
+    marker = folium.Marker(
+        location=(point.y, point.x),
+        icon=folium.DivIcon(html=html), **kwargs)
+    if m:
+        marker.add_to(m)
+
+    return marker
+
+
 
 def label_shapes(m, df, col, style={}):
     """Create a function that will add the string of `col`
