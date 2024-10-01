@@ -6,11 +6,13 @@ from dotenv import load_dotenv
 import pandas as pd
 import geopandas as gpd
 import us
+
 import datetime
 
 import humanize
 
 from invoke import task
+import json
 
 
 def get_project_config():
@@ -83,6 +85,24 @@ def tag(c):
 
 
 @task
+def hero_icons(c):
+    """Download heroicons."""
+    path = "./heroicons-master/optimized/16/solid"
+    files = os.listdir(path)
+    icons = {}
+    for f in files:
+        if f.endswith(".svg"):
+            filepath = os.path.join(path, f)
+            with open(filepath, "r") as svg:
+                src = svg.read()
+                key = f.replace(".svg", "")
+                icons[key] = src
+    # write it to icons.json with 2 tabs
+    with open("hi-icons.json", "w") as f:
+        json.dump(icons, f, indent=2)
+
+
+@task
 def tiger_places(c):
     """Download the census place data."""
     c.run("rm -rf _data/census_place")
@@ -109,5 +129,39 @@ def tiger_places(c):
 
     combined = pd.concat(results)
     combined = gpd.GeoDataFrame(combined)
-    combined.to_file("_ata/census_place/census_place.geojson", driver="GeoJSON")
-    
+    combined.to_file("_data/census_place/census_place.geojson", driver="GeoJSON")
+
+
+@task
+def tiger_tracts(c):
+    """Download the census tract data."""
+
+    dir = "_data/tiger_tracts"
+
+    c.run(f"rm -rf {dir}")
+    c.run(f"mkdir -p {dir}")
+
+
+    fips = list(range(1, 57)) + [60, 66, 69, 72, 78]
+
+    results = []
+    for fip in fips:
+        
+        tract = f"tl_2023_{str(fip).zfill(2)}_tract"
+        url = f"https://www2.census.gov/geo/tiger/TIGER2023/TRACT/{tract}.zip"
+        local = f"_data/census_place/{tract}.zip"
+        try:
+            c.run(f"wget -nv -O {local} {url}")
+        except:
+            print("No data for place", tract)
+            continue
+        c.run(f"unzip -q {local} -d {dir}/")
+        c.run(f"rm {local}")
+        df = gpd.read_file(f"{dir}/{tract}.shp")
+        df["STATE"] = df.STATEFP.map(us.states.mapping('fips', 'abbr'))
+        df.to_file(f"{dir}/{tract}.geojson", driver="GeoJSON")
+        results.append(df)
+
+    combined = pd.concat(results)
+    combined = gpd.GeoDataFrame(combined)
+    combined.to_file(f"{dir}/us_tiger_tracts.geojson", driver="GeoJSON")
