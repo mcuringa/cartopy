@@ -44,7 +44,7 @@ def clean(c):
 def build(c):
     """Build the package."""
     project = get_project_config()
-    name = {project['name']}
+    name = project['name']
     print(f"building {name} v{project['version']} ")
     c.run("rm -rf dist")
     c.run("python -m build")
