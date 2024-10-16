@@ -186,3 +186,6 @@ ceps
 firebase.json
 notebooks/runs.geojson
 *.qmd
+
+
+!maptools-latest.tar.gz
