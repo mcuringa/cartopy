@@ -68,12 +68,16 @@ def nice_name(var):
     var = var.replace("Estimate!!", "")
     var = var.lower()
     var = var.replace(":!!", " ")
+    var = var.strip()
+
+    if var.startswith("total ") or var.startswith("total!") or var.startswith("total "):
+        var = var[6:]
+    
+    var = var.strip()
     var = "_".join(var.split(" "))
     if var.endswith(":"):
         var = var[:-1]
     return var
-
-
 
 
 def get_variables():
@@ -92,7 +96,6 @@ def get_tables():
 
 
 def search(term, results=20):
-    print("j")
     tables = get_tables()
     tables = tables[tables.concept.notnull()]
     vectorizer = TfidfVectorizer()
@@ -106,3 +109,12 @@ def search(term, results=20):
     results.format({'match': '{:.2%}', 'concept': lambda x: x.title()})
     return results
 
+
+def get_table(table, as_dict=True):
+    table = table.upper()
+    variables = get_variables()
+    results = census_vars[variables.group == table].copy()
+    results.sort_values(by="var", inplace=True)
+    if as_dict:
+        return results.set_index('var')['var_name'].to_dict()
+    return results
