@@ -43,8 +43,11 @@ def _init_vars():
     ct["is_table"] = ct.group.apply(lambda x: len(x) == 6)
     ct = ct[ct.is_table]
     ct.dropna(inplace=True)
+    ct.drop(columns=["is_table"], inplace=True)
+    ct = ct[ct.concept.notnull()]
     census_vars = cv
     census_tables = ct
+    return cv, ct
 
 
 def lookup_state(statefp):
@@ -84,18 +87,22 @@ def get_tables():
     global census_tables
     if census_tables is None:
         _init_vars()
-    return census_vars.sort_values(by="group").copy()
+    return census_tables.sort_values(by="group").copy()
 
 
 
-def search(term):
-
+def search(term, results=20):
+    print("j")
+    tables = get_tables()
+    tables = tables[tables.concept.notnull()]
     vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(census_tables.concept)
+    tfidf_matrix = vectorizer.fit_transform(tables.concept)
 
     query_vec = vectorizer.transform([term])
-    similarity = cosine_similarity(query_vec, tfidf_matrix)
-    tables = get_tables()
-    tables['similarity'] = similarity.flatten()
-    return tables[tables.similarity > .65].sort_values(by='similarity', ascending=False).head(10).copy()
+    tables["match"] = cosine_similarity(query_vec, tfidf_matrix).flatten()
+    tables.sort_values(by='match', ascending=False, inplace=True)
+    tables = tables.head(results).copy()
+    results = tables.style.set_properties(subset=['concept'], **{'white-space': 'pre-wrap', 'word-wrap': 'break-word'})
+    results.format({'match': '{:.2%}', 'concept': lambda x: x.title()})
+    return results
 
