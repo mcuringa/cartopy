@@ -67,13 +67,13 @@ def lookup_state(statefp):
 def nice_name(var):
     var = var.replace("Estimate!!", "")
     var = var.lower()
-    var = var.replace(":!!", " ")
-    var = var.strip()
 
-    if var.startswith("total ") or var.startswith("total!") or var.startswith("total "):
+
+    var = re.sub(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$', '', re.sub(r'[^a-zA-Z0-9]+', '_', var))
+
+    if var.startswith("total_"):
         var = var[6:]
     
-    var = var.strip()
     var = "_".join(var.split(" "))
     if var.endswith(":"):
         var = var[:-1]
