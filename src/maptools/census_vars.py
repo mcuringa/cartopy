@@ -80,6 +80,39 @@ def nice_name(var):
     return var
 
 
+def col_name(var):
+    if "!!" in var:
+        var = var.split("!!")[-1]
+    return nice_name(var)
+
+def rename_columns(data, year=2023):
+
+    url = f"http://api.census.gov/data/{year}/acs/acs1/subject/variables.json"
+    resp = requests.get(url)
+    json = resp.json()
+
+    df = pd.DataFrame(json['variables']).T
+
+    df["var_name"] = df.label.apply(col_name)
+    df.var_name = df.var_name.str.replace("total_households_", "")
+    df.var_name = df.var_name.str.replace("percent_total_households_", "")
+    col_map = df["var_name"].to_dict()
+    col_map['[["GEO_ID"'] = 'GEOID'
+
+    results = data.rename(columns=col_map)
+    # get cols not in col_map
+    def check(c):
+        if c not in col_map.values() and "_" in c and not c.endswith("E"):
+            return True
+        if c.startswith("Unnamed"):
+            return True
+    
+    drop_cols = [c for c in results.columns if check(c)]
+    results.drop(columns=drop_cols, inplace=True)
+
+    return results
+
+
 def get_variables():
     global census_vars
     if census_vars is None:
