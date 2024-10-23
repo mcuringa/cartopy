@@ -51,6 +51,8 @@ def _init_vars():
     return cv, ct
 
 
+
+
 def merge_sates(df):
     df["STATEFP"] = df.geography.str[-2:]
     states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
@@ -78,6 +80,12 @@ def get(api, meta, multi=False):
     field_names = dict()
     for k, v in vars.items():
         if k in json[0]:
+            t = v["predicateType"] if "predicateType" in v else None
+            if t == "int":
+                data[k] = data[k].astype(int)
+            elif t == "float":
+                data[k] = data[k].astype(float)
+
             if "predicateOnly" in v and v["predicateOnly"]:
                 field_names[k] = k
             else:
