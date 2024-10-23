@@ -84,7 +84,7 @@ def get(api, meta, multi=False):
                 field_names[k] = nice_name(v["label"])
     data.rename(columns=field_names, inplace=True)
     data = merge_sates(data)
-
+    data.sort_values(by="state", inplace=True)
     return data
 
 
