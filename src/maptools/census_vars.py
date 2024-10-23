@@ -1,4 +1,5 @@
 import pandas as pd
+import geopandas as gpd
 import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -48,6 +49,43 @@ def _init_vars():
     census_vars = cv
     census_tables = ct
     return cv, ct
+
+
+def merge_sates(df):
+    df["STATEFP"] = df.geography.str[-2:]
+    states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
+    states = states[["STATEFP", "STUSPS", "NAME", "geometry"]]
+    data = states.merge(df, on="STATEFP")
+    data.rename(columns={"NAME": "state_name", "STUSPS": "state"}, inplace=True)
+    data.drop(columns=["STATEFP", "geography", "ucgid"], inplace=True)
+    cols = list(data.columns)
+    cols.remove("geometry")
+    cols = cols + ["geometry"]
+    data = data[cols]
+    return data
+
+def get(api, meta, multi=False):
+    metadata = requests.get(meta).json()
+    json = requests.get(api).json()
+    data = pd.DataFrame(json[1:], columns=json[0])
+    vars_url = metadata["dataset"][0]["c_variablesLink"]
+    vars = requests.get(vars_url).json()
+    vars = vars["variables"]
+
+    drop = [c for c in data.columns if c not in vars]
+    data.drop(columns=drop, inplace=True)
+
+    field_names = dict()
+    for k, v in vars.items():
+        if k in json[0]:
+            if "predicateOnly" in v and v["predicateOnly"]:
+                field_names[k] = k
+            else:
+                field_names[k] = nice_name(v["label"])
+    data.rename(columns=field_names, inplace=True)
+    data = merge_sates(data)
+
+    return data
 
 
 def lookup_state(statefp):
