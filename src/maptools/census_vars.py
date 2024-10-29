@@ -66,10 +66,9 @@ def merge_sates(df):
     data = data[cols]
     return data
 
-def get(api, meta, multi=False):
+
+def get_meta(data, meta):
     metadata = requests.get(meta).json()
-    json = requests.get(api).json()
-    data = pd.DataFrame(json[1:], columns=json[0])
     vars_url = metadata["dataset"][0]["c_variablesLink"]
     vars = requests.get(vars_url).json()
     vars = vars["variables"]
@@ -94,6 +93,12 @@ def get(api, meta, multi=False):
     data = merge_sates(data)
     data.sort_values(by="state", inplace=True)
     return data
+
+def get(api, meta, multi=False):
+    json = requests.get(api).json()
+    data = pd.DataFrame(json[1:], columns=json[0])
+    return get_meta(data, meta)
+
 
 
 def lookup_state(statefp):
