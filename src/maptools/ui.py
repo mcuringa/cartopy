@@ -34,6 +34,15 @@ import warnings
 from .icons import hi_icons
 
 
+# def census_race_cmap():
+#     demo_colors = {
+#         "asian": "darkred",
+#         "black": "darkblue",
+#         "hispanic": "darkgreen",
+#         "white": "darkorange",
+#     }
+
+
 def base_map(gdf=None, center=None, zoom=10, provider=xyz.CartoDB.Positron, name=""):
     """
     Create a base map using Folium.
@@ -533,6 +542,7 @@ def popup(cols, style={"min-width": "200px"}, title=True, fmt_funcs={}):
         A dictionary of functions to apply to the data in each column.
         The keys are the column names and the values are the functions to apply.
     """
+
     style_str = ";".join([f"{k}:{v}" for k,v in style.items()])
 
     def html(row):

@@ -9,6 +9,9 @@ import us
 census_vars = None
 census_tables = None
 
+
+
+
 def _init_vars():
     global census_vars
     global census_tables
@@ -54,7 +57,7 @@ def _init_vars():
 
 
 def merge_sates(df):
-    df["STATEFP"] = df.geography.str[-2:]
+    df["STATEFP"] = df.ucgid.str[-2:]
     states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
     states = states[["STATEFP", "STUSPS", "NAME", "geometry"]]
     data = states.merge(df, on="STATEFP")
@@ -66,19 +69,89 @@ def merge_sates(df):
     data = data[cols]
     return data
 
+def merge_tracts(df):
+    land = gpd.read_file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_500k.zip")
 
-def get_meta(data, meta):
+
+    df["GEOID"] = df.ucgid.apply(lambda x: x.split("US")[1])
+    state_fips = df.ucgid.apply(lambda x: x.split("US")[1][:2])
+    state_fips = state_fips.unique()
+    for statefp in state_fips:
+        url = f"https://www2.census.gov/geo/tiger/TIGER2022/TRACT/tl_2022_{statefp}_tract.zip"
+        state = land[land.STATEFP == statefp]
+        tracts = gpd.read_file(url)
+        tracts = tracts[["GEOID", "geometry", "STATEFP", "COUNTYFP", "TRACTCE"]]
+        data = tracts.merge(df, on="GEOID")
+        # push geometry cols to the end
+        cols =  list(df.columns) + ["STATEFP", "COUNTYFP", "TRACTCE", "geometry"]
+        data = data[cols]
+        data.drop(columns=["geography", "ucgid", "GEOID"], inplace=True)
+        data.columns = [c.lower() for c in data.columns]
+        data = gpd.clip(data, state)
+    return data
+
+
+def merge_geography(data):
+    level_codes = {
+        "010": "Nation",
+        "020": "Region",
+        "030": "Division",
+        "040": "State",
+        "050": "County",
+        "060": "County Subdivision",
+        "067": "Subminor Civil Division",
+        "140": "Census Tract",
+        "150": "Census Block",
+        "160": "Place",
+        "170": "Consolidated City",
+        "230": "Alaska Native Regional Corporation",
+        "250": "American Indian Area/Alaska Native Area/Hawaiian Home Land",
+        "251": "American Indian Area (Reservation or Off-Reservation Trust Land)",
+        "252": "Alaska Native Village Statistical Area",
+        "254": "Oklahoma Tribal Statistical Area",
+        "256": "Tribal Designated Statistical Area",
+        "258": "American Indian Joint-Use Area",
+        "260": "Metropolitan Statistical Area/Micropolitan Statistical Area",
+        "310": "Metropolitan Division",
+        "314": "Combined Statistical Area",
+        "330": "State Metropolitan Statistical Area",
+        "335": "New England City and Town Area (NECTA)",
+        "336": "NECTA Division",
+        "350": "Combined NECTA",
+        "400": "Urban Area",
+        "500": "Congressional District",
+        "610": "State Legislative District (Upper Chamber)",
+        "620": "State Legislative District (Lower Chamber)",
+        "700": "Public Use Microdata Area (PUMA)",
+        "860": "ZIP Code Tabulation Area (ZCTA)",
+        "970": "School District (Elementary)",
+        "980": "School District (Secondary)",
+        "990": "School District (Unified)"
+    }
+    geo_levels = data.ucgid.apply(lambda x: x[:3]).unique()
+    assert len(geo_levels) == 1, "Data contains multiple geographic levels"
+    level = level_codes[geo_levels[0]]
+    if level == "State":
+        data = merge_sates(data)
+        return data.sort_values(by="state")
+    
+    if level == "Census Tract":
+        return merge_tracts(data)
+
+def merge_meta(data, meta):
     metadata = requests.get(meta).json()
     vars_url = metadata["dataset"][0]["c_variablesLink"]
     vars = requests.get(vars_url).json()
     vars = vars["variables"]
-
     drop = [c for c in data.columns if c not in vars]
     data.drop(columns=drop, inplace=True)
+    cols = set(data.columns)
 
     field_names = dict()
     for k, v in vars.items():
-        if k in json[0]:
+        if k not in cols:
+            field_names[k] = k
+        else:
             t = v["predicateType"] if "predicateType" in v else None
             if t == "int":
                 data[k] = data[k].astype(int)
@@ -90,14 +163,14 @@ def get_meta(data, meta):
             else:
                 field_names[k] = nice_name(v["label"])
     data.rename(columns=field_names, inplace=True)
-    data = merge_sates(data)
-    data.sort_values(by="state", inplace=True)
     return data
 
 def get(api, meta, multi=False):
     json = requests.get(api).json()
     data = pd.DataFrame(json[1:], columns=json[0])
-    return get_meta(data, meta)
+    data = merge_meta(data, meta)
+    data = merge_geography(data)
+    return data
 
 
 

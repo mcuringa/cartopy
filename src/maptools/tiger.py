@@ -6,6 +6,22 @@ import re
 import zipfile
 import pandas as pd
 import geopandas as gpd
+import us
+
+from . import ui
+
+def get_state_count_map(state, year=2023):
+    url = f"https://www2.census.gov/geo/tiger/TIGER{year}/COUNTY/tl_{year}_us_county.zip"
+    gdf = gpd.read_file(url)
+    state_fips = us.states.lookup(state).fips
+    counties = gdf[gdf.STATEFP == state_fips].copy()
+    counties["tooltip"] = counties.apply(lambda x: f"{x.NAME} ({x.COUNTYFP})", axis=1)
+    counties["popup"] = counties.apply(ui.popup(["NAME", "STATEFP", "COUNTYFP"]), axis=1)
+    m = ui.base_map(counties)
+    m = counties.explore(m=m, tooltip="tooltip", popup="popup", tooltip_kwds={"labels": False}, popup_kwds={"labels": False})
+    m = ui.label_shapes(m, counties, "COUNTYFP")
+    return m
+    
 
 def download(session, url, filename):
     with session.get(url, stream=True) as response:
