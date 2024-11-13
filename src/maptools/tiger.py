@@ -1,3 +1,4 @@
+from shapely.geometry import MultiPolygon, Polygon, GeometryCollection
 import os
 import os.path
 import requests
@@ -10,14 +11,50 @@ import us
 
 from . import ui
 
-def get_state_count_map(state, year=2023):
+
+def make_multi(geo):
+
+    if isinstance(geo, GeometryCollection):
+        print(geo)
+        polygons = [geom for geom in geo if isinstance( geom, (Polygon, MultiPolygon))]
+        return MultiPolygon(polygons)
+    return geo
+
+
+def shoreline(df, state):
+    """
+    Clip the land area to the continental US.
+    """
+    land = gpd.read_file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_500k.zip")
+    state_fips = us.states.lookup(state).fips
+    land = land[land.STATEFP == state_fips]
+    land.geometry = land.geometry.apply(make_multi)
+
+    return gpd.clip(df, land)
+
+
+def get_state_county_map(state, year=2023):
     url = f"https://www2.census.gov/geo/tiger/TIGER{year}/COUNTY/tl_{year}_us_county.zip"
     gdf = gpd.read_file(url)
     state_fips = us.states.lookup(state).fips
     counties = gdf[gdf.STATEFP == state_fips].copy()
+    counties = shoreline(counties, state)
     counties["tooltip"] = counties.apply(lambda x: f"{x.NAME} ({x.COUNTYFP})", axis=1)
     counties["popup"] = counties.apply(ui.popup(["NAME", "STATEFP", "COUNTYFP"]), axis=1)
-    m = ui.base_map(counties)
+    m = ui.base_map(counties, zoom=8)
+    m = counties.explore(m=m, tooltip="tooltip", popup="popup", tooltip_kwds={"labels": False}, popup_kwds={"labels": False})
+    m = ui.label_shapes(m, counties, "COUNTYFP")
+    return m
+    
+
+def get_tracts_map(state, counties, year=2023):
+    state_fips = us.states.lookup(state).fips
+    url = f"https://www2.census.gov/geo/tiger/TIGER2022/TRACT/tl_2022_{state_fips}_tract.zip"
+    gdf = gpd.read_file(url)
+    counties = gdf[gdf.STATEFP == state_fips].copy()
+    counties["tooltip"] = counties.apply(lambda x: f"{x.NAME} ({x.COUNTYFP})", axis=1)
+    counties["popup"] = counties.apply(ui.popup(["NAME", "STATEFP", "COUNTYFP"]), axis=1)
+    m = ui.base_map(counties, zoom=8)
     m = counties.explore(m=m, tooltip="tooltip", popup="popup", tooltip_kwds={"labels": False}, popup_kwds={"labels": False})
     m = ui.label_shapes(m, counties, "COUNTYFP")
     return m
