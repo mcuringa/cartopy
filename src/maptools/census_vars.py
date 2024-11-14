@@ -168,9 +168,9 @@ def merge_meta(data, meta):
 def get(api, meta, multi=False):
     json = requests.get(api).json()
     data = pd.DataFrame(json[1:], columns=json[0])
-    data = merge_meta(data, meta)
-    data = merge_geography(data)
-    return data
+    data = merge_meta(data, meta).copy()
+    data = merge_geography(data).copy()
+    return data.copy()
 
 
 
