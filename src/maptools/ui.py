@@ -61,7 +61,7 @@ def base_map(gdf=None, center=None, zoom=10, provider=xyz.CartoDB.Positron, name
     if center == None and gdf is not None:
         minx, miny, maxx, maxy = gdf.total_bounds
         center = [(miny + maxy) / 2, (minx + maxx) / 2]
-    else:
+    elif center == None:
         center = [40.69018448848042, -73.98654521557344] # AU Brooklyn
 
     attr = "maptools" if not provider.attribution else provider.attribution
@@ -108,7 +108,7 @@ def label_plot(ax, df, col):
 def div_icon(icon, row, m=None, size=16,
              color=None, column=None, cmap=None,
              style_kwds={}, style_func=None,
-             tooltip=None, popup="None", **kwargs):
+             tooltip=None, popup=None, **kwargs):
 
     if cmap and column:
         color = cmap(row[column])
@@ -282,6 +282,7 @@ function toggleMarkers(color) {
 
     m.get_root().html.add_child(folium.Element(html))
     return m
+
 
 def map_layers(m, df, radius=5):
 

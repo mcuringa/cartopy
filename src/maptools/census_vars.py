@@ -15,34 +15,38 @@ census_tables = None
 def _init_vars():
     global census_vars
     global census_tables
-    url = "https://api.census.gov/data/2020/acs/acs5/variables.json"
-    response = requests.get(url)
-    data = response.json()
-    t = data["variables"]
-    var_names = [k for k in t.keys() if k.startswith("B")]
+    details = "https://api.census.gov/data/2022/acs/acs5/variables.json"
+    subjects = "https://api.census.gov/data/2022/acs/acs5/subject/variables.json"
+    urls = [details, subjects]
+    def load_meta(url):
+        response = requests.get(url)
+        data = response.json()
+        t = data["variables"]
+        # var_names = [k for k in t.keys() if k.startswith("B")]
 
-    cols = ['var', 'label', 'concept', 'type', 'group', 'limit', 'attributes']
+        # cols = ['var', 'label', 'concept', 'type', 'group', 'limit', 'attributes']
 
-    def make_row(var, data):
-        return {
-            "var": var,
-            "label": data.get("label", None),
-            "concept": data.get("concept", None),
-            "var_name": nice_name(data.get("label", None)),
-            "type": data.get("predicateType", None),
-            "group": data.get("group", None),
-            "limit": data.get("limit", None),
-            "attributes": data.get("attributes", None)
-        }
-
-
-    rows = [make_row(k, v) for k, v in t.items()]
-    cv = pd.DataFrame(data=rows)
-    cv = cv[~cv["var"].isin(["for", "in", "ucgid"])]
-    cv.sort_values(by="group", inplace=True)
-    cv = cv[['var', 'group', 'concept',  'label', 'var_name', 'type',  'limit', 'attributes']]
+        def make_row(var, data):
+            return {
+                "var": var,
+                "label": data.get("label", None),
+                "concept": data.get("concept", None),
+                "var_name": nice_name(data.get("label", None)),
+                "type": data.get("predicateType", None),
+                "group": data.get("group", None),
+                "limit": data.get("limit", None),
+                "attributes": data.get("attributes", None)
+            }
 
 
+        rows = [make_row(k, v) for k, v in t.items()]
+        cv = pd.DataFrame(data=rows)
+        cv = cv[~cv["var"].isin(["for", "in", "ucgid"])]
+        cv.sort_values(by="group", inplace=True)
+        cv = cv[['var', 'group', 'concept',  'label', 'var_name', 'type',  'limit', 'attributes']]
+        return cv
+
+    cv = pd.concat([load_meta(url) for url in urls])
     ct = cv[["group", "concept"]].drop_duplicates()
     ct["is_table"] = ct.group.apply(lambda x: len(x) == 6)
     ct = ct[ct.is_table]
