@@ -59,13 +59,12 @@ def _init_vars():
     return cv, ct
 
 
-def merge_sates(df):
+def merge_states(df):
     df["STATEFP"] = df.ucgid.str[-2:]
     states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
-    states = states[["STATEFP", "STUSPS", "NAME", "geometry"]]
+    states = states[["STATEFP", "STUSPS", "geometry"]]
     data = states.merge(df, on="STATEFP")
-    data.rename(columns={"NAME": "state_name", "STUSPS": "state"}, inplace=True)
-    data.drop(columns=["STATEFP", "geography", "ucgid"], inplace=True)
+    data.rename(columns={"NAME": "state_name", "STUSPS": "state", "STATEFP":"statefp"}, inplace=True)
     cols = list(data.columns)
     cols.remove("geometry")
     cols = cols + ["geometry"]
@@ -94,7 +93,6 @@ def merge_tracts(df):
         data.columns = [c.lower() for c in data.columns]
         data = gpd.clip(data, state)
     return data
-
 
 def merge_geography(data):
     data = data.copy()
@@ -139,7 +137,7 @@ def merge_geography(data):
     level = level_codes[geo_levels[0]]
     # print(f"Geographic level: {level}")
     if level == "State":
-        data = merge_sates(data)
+        data = merge_states(data)
         return data.sort_values(by="state")
     
     if level == "Census Tract":
@@ -176,8 +174,8 @@ def merge_meta(data, meta):
             continue
         
         if meta is None:
-            if not c.startswith("D"):
-                print(f"{c},")
+            # if not c.startswith("D"):
+            #     print(f"{c},")
             continue
 
         # try to convert to the correct type
@@ -216,7 +214,7 @@ def de_dup(aliases):
 
 
 def get(api, meta, multi=False):
-
+    print("get 1")
     json = requests.get(api).json()
     data = pd.DataFrame(json[1:], columns=json[0])
     data = merge_meta(data, meta)
