@@ -137,7 +137,7 @@ def merge_geography(data):
     geo_levels = data.ucgid.apply(lambda x: x[:3]).unique()
     assert len(geo_levels) == 1, "Data contains multiple geographic levels"
     level = level_codes[geo_levels[0]]
-    print(f"Geographic level: {level}")
+    # print(f"Geographic level: {level}")
     if level == "State":
         data = merge_sates(data)
         return data.sort_values(by="state")
@@ -216,7 +216,7 @@ def de_dup(aliases):
 
 
 def get(api, meta, multi=False):
-    print("running get 7")
+
     json = requests.get(api).json()
     data = pd.DataFrame(json[1:], columns=json[0])
     data = merge_meta(data, meta)
