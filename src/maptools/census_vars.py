@@ -5,12 +5,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 import us
+import warnings
 
 census_vars = None
 census_tables = None
 
 
-
+# http://api.census.gov/data/2022/acs/acs5/variables.json
 
 def _init_vars():
     global census_vars
@@ -58,8 +59,6 @@ def _init_vars():
     return cv, ct
 
 
-
-
 def merge_sates(df):
     df["STATEFP"] = df.ucgid.str[-2:]
     states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
@@ -81,21 +80,24 @@ def merge_tracts(df):
     state_fips = df.ucgid.apply(lambda x: x.split("US")[1][:2])
     state_fips = state_fips.unique()
     for statefp in state_fips:
+        
         url = f"https://www2.census.gov/geo/tiger/TIGER2022/TRACT/tl_2022_{statefp}_tract.zip"
         state = land[land.STATEFP == statefp]
-        tracts = gpd.read_file(url)
+        
+        tracts = gpd.read_file(url)       
         tracts = tracts[["GEOID", "geometry", "STATEFP", "COUNTYFP", "TRACTCE"]]
+        
         data = tracts.merge(df, on="GEOID")
         # push geometry cols to the end
         cols =  list(df.columns) + ["STATEFP", "COUNTYFP", "TRACTCE", "geometry"]
         data = data[cols]
-        data.drop(columns=["geography", "ucgid", "GEOID"], inplace=True)
         data.columns = [c.lower() for c in data.columns]
         data = gpd.clip(data, state)
     return data
 
 
 def merge_geography(data):
+    data = data.copy()
     level_codes = {
         "010": "Nation",
         "020": "Region",
@@ -135,45 +137,91 @@ def merge_geography(data):
     geo_levels = data.ucgid.apply(lambda x: x[:3]).unique()
     assert len(geo_levels) == 1, "Data contains multiple geographic levels"
     level = level_codes[geo_levels[0]]
+    print(f"Geographic level: {level}")
     if level == "State":
         data = merge_sates(data)
         return data.sort_values(by="state")
     
     if level == "Census Tract":
         return merge_tracts(data)
+    if level == "County":
+        data["GEOID"] = data.ucgid.apply(lambda x: x.split("US")[1])
+        return data
+    if level == "Nation":
+        warnings.warn("Nation level data is not merged with geography")
+        return data
+    warnings.warn(f"Unsupported geographic level: {level}, no geography available")
+    return data
 
 def merge_meta(data, meta):
+    data = data.copy()
+    geo_vars = ['AIANHH', 'ANRC', 'CBSA', 'CD', 'COUNTY', 'COUSUB', 'CSA',
+                'GEOCOMP', 'GEO_ID', 'METDIV', 'NAME', 'NATION',
+                'PLACE', 'PRINCITY', 'PUMA', 'REGION', 'SDELM',
+                'SDSEC', 'SDUNI', 'STATE', 'SUMLEVEL', 'UA',
+                'block group', 'congressional district', 'county', 'for', 'in',
+                'place', 'state', 'tract', 'ucgid', 'zcta']
+    
     metadata = requests.get(meta).json()
     vars_url = metadata["dataset"][0]["c_variablesLink"]
     vars = requests.get(vars_url).json()
     vars = vars["variables"]
-    drop = [c for c in data.columns if c not in vars]
-    data.drop(columns=drop, inplace=True)
-    cols = set(data.columns)
 
-    field_names = dict()
-    for k, v in vars.items():
-        if k not in cols:
-            field_names[k] = k
-        else:
-            t = v["predicateType"] if "predicateType" in v else None
-            if t == "int":
-                data[k] = data[k].astype(int)
-            elif t == "float":
-                data[k] = data[k].astype(float)
+    aliases = {}
+    for c in data.columns:
+        meta = vars.get(c, None)
+        predicate = meta.get("predicateOnly", False) if meta is not None else False
+        if c in geo_vars or predicate:
+            aliases[c] = c
+            continue
+        
+        if meta is None:
+            if not c.startswith("D"):
+                print(f"{c},")
+            continue
 
-            if "predicateOnly" in v and v["predicateOnly"]:
-                field_names[k] = k
-            else:
-                field_names[k] = nice_name(v["label"])
-    data.rename(columns=field_names, inplace=True)
+        # try to convert to the correct type
+        t = meta.get("predicateType", None)
+        try:
+            if t in ["int", "float"]:
+                i = data[c].astype(float)
+                try:
+                    i = i.astype(int)
+                except:
+                    pass
+                data[c] = i
+        except:
+            print(f"Error converting {c} to {t}. Value ({data[c]})")
+        
+        n = nice_name(meta["label"])
+        aliases[c] = n
+
+    # print(aliases)
+    aliases = de_dup(aliases)
+    data = data[aliases.keys()]
+    data.rename(columns=aliases, inplace=True)
+    duplicates = data.columns[data.columns.duplicated()]
+    assert len(duplicates) == 0, f"Duplicate columns:\n {duplicates}"
     return data
 
+def de_dup(aliases):
+    rev = {v:k for k, v in aliases.items()}
+    new_aliases = {}
+    for var, label in aliases.items():
+        if label in rev and rev[label] != var:
+            label = f"{label}_(var)"
+        new_aliases[var] = label
+    
+    return new_aliases
+
+
 def get(api, meta, multi=False):
+    print("running get 7")
     json = requests.get(api).json()
     data = pd.DataFrame(json[1:], columns=json[0])
-    data = merge_meta(data, meta).copy()
-    data = merge_geography(data).copy()
+    data = merge_meta(data, meta)
+
+    data = merge_geography(data)
     return data.copy()
 
 
@@ -195,7 +243,6 @@ def lookup_state(statefp):
 def nice_name(var):
     var = var.replace("Estimate!!", "")
     var = var.lower()
-
 
     var = re.sub(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$', '', re.sub(r'[^a-zA-Z0-9]+', '_', var))
 
