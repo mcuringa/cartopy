@@ -60,7 +60,7 @@ def _init_vars():
 
 
 def merge_states(df):
-    df["STATEFP"] = df.ucgid.str[-2:]
+    df["STATEFP"] = df.GEOID.str[-2:]
     states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
     states = states[["STATEFP", "STUSPS", "geometry"]]
     data = states.merge(df, on="STATEFP")
@@ -69,6 +69,26 @@ def merge_states(df):
     cols.remove("geometry")
     cols = cols + ["geometry"]
     data = data[cols]
+    return data
+
+
+def merge_counties(df):
+    land = gpd.read_file( "https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_500k.zip")
+    df["GEOID"] = df.ucgid.apply(lambda x: x.split("US")[1])
+    df["state_name"] = df.NAME.apply(lambda x: x.split(",")[1].strip())
+    df.drop(columns=["NAME"], inplace=True)
+    county_url = "https://www2.census.gov/geo/tiger/TIGER2022/COUNTY/tl_2022_us_county.zip"
+    counties = gpd.read_file(county_url)
+    counties = counties[["GEOID", "STATEFP", "COUNTYFP", "NAME", "geometry"]]
+    data = counties.merge(df, on="GEOID")
+    data.rename(columns={"NAME": "county", "COUNTYFP": "countyfp", "STATEFP": "statefp"}, inplace=True)
+    data["state"] = data.statefp.apply(lookup_state)
+    cols = list(data.columns)
+    cols.remove("geometry")
+    cols = cols + ["geometry"]
+    data = data[cols]
+    land = land[land.STATEFP.isin(data.statefp.unique())]
+    data = gpd.clip(data, land)
     return data
 
 def merge_tracts(df):
@@ -135,19 +155,23 @@ def merge_geography(data):
     geo_levels = data.ucgid.apply(lambda x: x[:3]).unique()
     assert len(geo_levels) == 1, "Data contains multiple geographic levels"
     level = level_codes[geo_levels[0]]
-    # print(f"Geographic level: {level}")
+    print(f"Geographic level: {level}")
+    if level == "Nation":
+        warnings.warn("Nation level data is not merged with geography")
+        return data
+    
+    
     if level == "State":
         data = merge_states(data)
         return data.sort_values(by="state")
     
+    if level == "County":
+        data = merge_counties(data)
+        return data.sort_values(by=["state", "county"])
+    
     if level == "Census Tract":
         return merge_tracts(data)
-    if level == "County":
-        data["GEOID"] = data.ucgid.apply(lambda x: x.split("US")[1])
-        return data
-    if level == "Nation":
-        warnings.warn("Nation level data is not merged with geography")
-        return data
+
     warnings.warn(f"Unsupported geographic level: {level}, no geography available")
     return data
 
@@ -213,10 +237,11 @@ def de_dup(aliases):
     return new_aliases
 
 
-def get(api, meta, multi=False):
-    print("get 1")
+def get(api, meta, raw=False):
     json = requests.get(api).json()
     data = pd.DataFrame(json[1:], columns=json[0])
+    if raw:
+        return data
     data = merge_meta(data, meta)
 
     data = merge_geography(data)

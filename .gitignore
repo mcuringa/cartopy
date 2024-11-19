@@ -188,4 +188,5 @@ notebooks/runs.geojson
 *.qmd
 
 
-!maptools-latest.tar.gztmp
+!maptools-latest.tar.gz
+tmp
