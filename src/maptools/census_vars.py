@@ -60,7 +60,7 @@ def _init_vars():
 
 
 def merge_states(df):
-    df["STATEFP"] = df.GEOID.str[-2:]
+    df["STATEFP"] = df.ucgid.str[-2:]
     states = gpd.read_file( "https://www2.census.gov/geo/tiger/TIGER2022/STATE/tl_2022_us_state.zip")
     states = states[["STATEFP", "STUSPS", "geometry"]]
     data = states.merge(df, on="STATEFP")
