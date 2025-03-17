@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "maptools"
-version = "0.1.25"
+version = "0.1.26"
 authors = [
   { name="Matthew X. Curinga", email="mcuringa@adelphi.edu" },
 ]
@@ -32,7 +32,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-keywords=["opendata, schools, newyorkcity, maps"]
+keywords=["GIS, maps, folium, leaflet, geopandas, pandas, census, tigerline, UI"]
 
 dependencies = [
 "fiona",

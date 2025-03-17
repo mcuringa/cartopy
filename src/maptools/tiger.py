@@ -26,6 +26,7 @@ def shoreline(df, state):
     Clip the land area to the continental US.
     """
     land = gpd.read_file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_500k.zip")
+    land.to_crs(df.crs, inplace=True)
     state_fips = us.states.lookup(state).fips
     land = land[land.STATEFP == state_fips]
     land.geometry = land.geometry.apply(make_multi)
