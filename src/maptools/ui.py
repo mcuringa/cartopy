@@ -110,6 +110,7 @@ def div_icon(icon, row, m=None, size=16,
              style_kwds={}, style_func=None,
              tooltip=None, popup=None, **kwargs):
 
+
     if cmap and column:
         color = cmap(row[column])
     elif color:
@@ -147,7 +148,10 @@ def div_icon(icon, row, m=None, size=16,
     # print(html)
     marker = folium.Marker(
         location=(point.y, point.x),
-        icon=folium.DivIcon(html=html), **kwargs)
+        icon=folium.DivIcon(html=html),
+        tooltip=tooltip,
+        popup=popup,
+         **kwargs)
     if m:
         marker.add_to(m)
 
