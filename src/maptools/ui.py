@@ -27,9 +27,11 @@ import numpy as np
 import random
 import math
 from shapely import Point
+from shapely.geometry import LineString
 from functools import partial
 import xyzservices.providers as xyz
 import warnings
+from shapely import affinity
 
 from .icons import hi_icons
 
@@ -156,6 +158,79 @@ def div_icon(icon, row, m=None, size=16,
         marker.add_to(m)
 
     return marker
+
+
+def cluster_radial(df, group_col, r):
+    """
+    Creates 2 new geometry columns for each row in df, arranging points radially around
+    a computed cluster center for each group.
+
+    Parameters
+    ----------
+    df : GeoDataFrame
+         Contains point geometries.
+    group_col : str
+         Column name to group on. Points in each group will be arranged radially around the group center.
+    r : int or callable
+         The radius (in meters) for the radial placement. If r is an int, it is used as a fixed radius.
+         If r is a function, it should accept (cluster_center, row) and return an int.
+
+    Returns
+    -------
+    GeoDataFrame
+         A copy of df with two new columns:
+         - `geometry`: the new point geometry replaces the cluster center; 
+            placed at a fixed distance from the cluster center.
+         - `spoke_geom`: a LineString from the cluster center to the new point geometry.
+         The GeoDataFrame’s active geometry will be set to `translated_geom`.
+    """
+    import numpy as np
+    from shapely.geometry import LineString, Point
+    from shapely import affinity
+    import geopandas as gpd
+
+    df = df.copy()
+
+    def process_group(group):
+        group = group.copy()
+        n = len(group)
+        union = group.unary_union
+        if isinstance(union, Point):
+            cluster_center = union
+        else:
+            cluster_center = union.centroid
+
+        group["cluster_center"] = cluster_center
+
+        group["angle"] = np.linspace(0, 360, n, endpoint=False)
+
+        def update_row(row):
+            meters = r
+            if callable(r):
+                meters = r(cluster_center, row)
+
+            # Approximate conversion factors (these are rough estimates).
+            d_lat = meters / 111320 
+            d_lon = meters / (40075000 * np.cos(np.deg2rad(cluster_center.y)) / 360)
+
+            angle_rad = np.deg2rad(row["angle"])
+            dx = d_lon * np.cos(angle_rad)
+            dy = d_lat * np.sin(angle_rad)
+
+            new_point = affinity.translate(cluster_center, xoff=dx, yoff=dy)
+            spoke = LineString([(cluster_center.x, cluster_center.y), (new_point.x, new_point.y)])
+
+            row["geometry"] = new_point
+            row["spoke_geom"] = spoke
+            return row
+
+        return group.apply(update_row, axis=1)
+
+    result = df.groupby(group_col).apply(process_group).reset_index(drop=True)
+    result = result.drop(columns=["angle", "cluster_center"])
+    return gpd.GeoDataFrame(result, geometry="geometry", crs=df.crs)
+
+
 
 
 
