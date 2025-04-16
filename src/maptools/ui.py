@@ -126,7 +126,7 @@ def div_icon(icon, row, m=None, size=16,
         "fill": f"{color}",
         "stroke-width": "1",
         "stroke-opacity": "0.8",
-        "fill-opacity": "0.6",
+        "fill-opacity": "1",
         "height": f"{size}px",
         "width": f"{size}px"
     }

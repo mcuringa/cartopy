@@ -12,6 +12,9 @@ import us
 from . import ui
 
 
+def get_nyc_countyfps():
+    return ['005', '047', '061', '081', '085']
+
 def make_multi(geo):
 
     if isinstance(geo, GeometryCollection):
@@ -25,7 +28,7 @@ def shoreline(df, state):
     """
     Clip the land area to the continental US.
     """
-    land = gpd.read_file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_500k.zip")
+    land = gpd.read_file("/home/mxc/Projects/cartopy/_data/cb_2018_us_state_500k.zip")
     land.to_crs(df.crs, inplace=True)
     state_fips = us.states.lookup(state).fips
     land = land[land.STATEFP == state_fips]
